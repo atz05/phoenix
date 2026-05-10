@@ -334,8 +334,16 @@
         updateSize();
         window.addEventListener("resize", updateSize);
 
+        // Dedupe rapid successive taps (mobile fires touchstart + click for one tap).
+        let lastTapAt = 0;
+        const TAP_DEBOUNCE_MS = 400;
+
         function handleClickOrTouch(e) {
             e.preventDefault(); // Prevent default touch behavior
+
+            const now = Date.now();
+            if (now - lastTapAt < TAP_DEBOUNCE_MS) return;
+            lastTapAt = now;
 
             let clientX, clientY;
 
