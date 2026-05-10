@@ -302,11 +302,27 @@
 
         let isRendering = true;
 
-        // First tap plays the track marked data-first; later taps pick a random other track.
+        // First tap plays the track marked data-first; subsequent taps play through a
+        // shuffled queue so every song is heard once before any repeats.
         const tracks = Array.from(document.querySelectorAll('audio.tap-track'));
         const firstTrack = tracks.find(t => t.hasAttribute('data-first')) || tracks[0];
         let isFirstTap = true;
         let lastPlayedIndex = -1;
+        let shuffleQueue = [];
+
+        function refillShuffleQueue() {
+            const indices = tracks.map((_, i) => i);
+            // Fisher–Yates shuffle
+            for (let i = indices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+            // Avoid back-to-back repeat across queues
+            if (indices.length > 1 && indices[0] === lastPlayedIndex) {
+                [indices[0], indices[1]] = [indices[1], indices[0]];
+            }
+            shuffleQueue = indices;
+        }
 
         let renderer, shaderScene, mainScene, sceneTest, renderTargets, camera, clock;
         let basicMaterial, shaderMaterial;
@@ -341,18 +357,13 @@
                     next = firstTrack;
                     isFirstTap = false;
                 } else {
-                    // Random pick that isn't the last-played track (when more than one option).
-                    let idx;
-                    if (tracks.length === 1) {
-                        idx = 0;
-                    } else {
-                        do {
-                            idx = Math.floor(Math.random() * tracks.length);
-                        } while (idx === lastPlayedIndex);
-                    }
+                    if (shuffleQueue.length === 0) refillShuffleQueue();
+                    const idx = shuffleQueue.shift();
                     next = tracks[idx];
                 }
                 lastPlayedIndex = tracks.indexOf(next);
+                // Drop the just-played track from the upcoming queue so it isn't replayed early.
+                shuffleQueue = shuffleQueue.filter(i => i !== lastPlayedIndex);
 
                 next.play().catch(error => {
                     console.log('Could not play track:', error);
