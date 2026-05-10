@@ -65,10 +65,11 @@
 
     <!-- Swoosh sound will be generated using Web Audio API -->
     
-    <!-- Audio elements: one per tappable track -->
+    <!-- Audio elements: one per tappable track. data-first marks the song that plays on the first tap. -->
+    <audio class="tap-track" preload="auto" src="Count-on-me.mp3" data-first></audio>
     <audio class="tap-track" preload="auto" src="blooming_song.mp3"></audio>
-    <audio class="tap-track" preload="auto" src="Count-on-me.mp3"></audio>
     <audio class="tap-track" preload="auto" src="Gehra_Hua.mp3"></audio>
+    <audio class="tap-track" preload="auto" src="Coldplay-yellow.mp3"></audio>
 
     <script type="x-shader/x-fragment" id="fragmentShader">
         uniform float u_ratio;
@@ -259,9 +260,11 @@
 
         let isRendering = true;
 
-        // Each tap plays the next track in the list (cycles).
+        // First tap plays the track marked data-first; later taps pick a random other track.
         const tracks = Array.from(document.querySelectorAll('audio.tap-track'));
-        let trackIndex = 0;
+        const firstTrack = tracks.find(t => t.hasAttribute('data-first')) || tracks[0];
+        let isFirstTap = true;
+        let lastPlayedIndex = -1;
 
         let renderer, shaderScene, mainScene, sceneTest, renderTargets, camera, clock;
         let basicMaterial, shaderMaterial;
@@ -287,11 +290,28 @@
                 clientY = touch.clientY;
             }
 
-            // Play the next track on each tap; stop any currently-playing track.
+            // Stop any currently-playing track, then choose what to play.
             if (tracks.length > 0) {
                 tracks.forEach(t => { t.pause(); try { t.currentTime = 0; } catch (e) {} });
-                const next = tracks[trackIndex % tracks.length];
-                trackIndex++;
+
+                let next;
+                if (isFirstTap) {
+                    next = firstTrack;
+                    isFirstTap = false;
+                } else {
+                    // Random pick that isn't the last-played track (when more than one option).
+                    let idx;
+                    if (tracks.length === 1) {
+                        idx = 0;
+                    } else {
+                        do {
+                            idx = Math.floor(Math.random() * tracks.length);
+                        } while (idx === lastPlayedIndex);
+                    }
+                    next = tracks[idx];
+                }
+                lastPlayedIndex = tracks.indexOf(next);
+
                 next.play().catch(error => {
                     console.log('Could not play track:', error);
                 });
