@@ -50,10 +50,10 @@
 
     <!-- Swoosh sound will be generated using Web Audio API -->
     
-    <!-- Audio element for blooming song -->
-    <audio id="bloomingSong" preload="auto">
-        <source src="blooming_song.mp3" type="audio/mpeg">
-    </audio>
+    <!-- Audio elements: one per tappable track -->
+    <audio class="tap-track" preload="auto" src="blooming_song.mp3"></audio>
+    <audio class="tap-track" preload="auto" src="Count-on-me.mp3"></audio>
+    <audio class="tap-track" preload="auto" src="Gehra_Hua.mp3"></audio>
 
     <script type="x-shader/x-fragment" id="fragmentShader">
         uniform float u_ratio;
@@ -244,12 +244,9 @@
 
         let isRendering = true;
 
-        // Each tap plays a different segment of the song.
-        // Offsets in seconds — cycled in order on every click/tap.
-        const songOffsets = [0, 12, 24, 36, 48, 60, 75, 90, 105, 120];
-        let songIndex = 0;
-        const SNIPPET_DURATION = 6; // seconds played per tap
-        let snippetTimeoutId = null;
+        // Each tap plays the next track in the list (cycles).
+        const tracks = Array.from(document.querySelectorAll('audio.tap-track'));
+        let trackIndex = 0;
 
         let renderer, shaderScene, mainScene, sceneTest, renderTargets, camera, clock;
         let basicMaterial, shaderMaterial;
@@ -275,30 +272,14 @@
                 clientY = touch.clientY;
             }
 
-            // Play a different segment of the song on every tap/click.
-            const bloomingSong = document.getElementById('bloomingSong');
-            if (bloomingSong) {
-                const playSnippet = () => {
-                    const duration = isFinite(bloomingSong.duration) ? bloomingSong.duration : 0;
-                    let offset = songOffsets[songIndex % songOffsets.length];
-                    songIndex++;
-                    if (duration > 0) offset = offset % duration;
-                    try { bloomingSong.currentTime = offset; } catch (err) {}
-                    bloomingSong.play().catch(error => {
-                        console.log('Could not play song segment:', error);
-                    });
-                    if (snippetTimeoutId) clearTimeout(snippetTimeoutId);
-                    snippetTimeoutId = setTimeout(() => {
-                        bloomingSong.pause();
-                    }, SNIPPET_DURATION * 1000);
-                };
-
-                if (bloomingSong.readyState >= 1) {
-                    playSnippet();
-                } else {
-                    bloomingSong.addEventListener('loadedmetadata', playSnippet, { once: true });
-                    bloomingSong.load();
-                }
+            // Play the next track on each tap; stop any currently-playing track.
+            if (tracks.length > 0) {
+                tracks.forEach(t => { t.pause(); try { t.currentTime = 0; } catch (e) {} });
+                const next = tracks[trackIndex % tracks.length];
+                trackIndex++;
+                next.play().catch(error => {
+                    console.log('Could not play track:', error);
+                });
             }
 
             // Play swoosh sound immediately on tap
